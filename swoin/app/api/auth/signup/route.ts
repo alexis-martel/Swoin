@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createUser } from "@/lib/db";
 import { hashPassword, validateCredentials } from "@/lib/auth";
-import { createSessionToken, getSessionCookieName, getSessionCookieOptions } from "@/lib/session";
+import { createSessionToken, getSessionCookieOptions } from "@/lib/session";
 
 export async function POST(request: Request) {
   try {
