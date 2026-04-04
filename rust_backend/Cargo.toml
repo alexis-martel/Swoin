@@ -1,0 +1,10 @@
+[package]
+name = "rust_backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.8"
+postgres = "0.19.13"
+sqlx = {version="0.8.6", features=["postgres", "macros", "runtime-tokio-rustls"]}
+tokio = {version="1.51.0", features=["rt-multi-thread", "full"]}
