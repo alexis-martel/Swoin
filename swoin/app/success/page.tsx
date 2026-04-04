@@ -8,23 +8,23 @@ import { useToast } from "../components/ToastProvider";
 function SuccessPageContent() {
   const toast = useToast();
   const searchParams = useSearchParams();
-  const amount = searchParams.get("amount") || "$2,450.00";
-  const recipient = searchParams.get("recipient") || "Julian Schmidt";
-  const handle = searchParams.get("handle") || "@julian.schmidt";
+  const amount = searchParams.get("amount") || "0.00 USDM";
+  const recipient = searchParams.get("recipient") || "Unknown";
+  const txId = `SV-${Date.now().toString(36).toUpperCase().slice(-8)}`;
 
   const copyTxId = async () => {
     try {
-      await navigator.clipboard.writeText("SV-9824-LX02");
+      await navigator.clipboard.writeText(txId);
       toast("Transaction ID copied!");
     } catch {
-      toast("SV-9824-LX02");
+      toast(txId);
     }
   };
 
   const shareReceipt = async () => {
     const shareData = {
       title: "Sovereign Payment Receipt",
-      text: `Payment of ${amount} to ${recipient} (${handle}) — Transaction ID: SV-9824-LX02`,
+      text: `Payment of ${amount} to ${recipient} — Transaction ID: ${txId}`,
     };
     try {
       if (navigator.share) {
@@ -68,7 +68,7 @@ function SuccessPageContent() {
           Payment Sent!
         </h2>
         <p className="text-on-surface-variant text-lg mb-12 max-w-md mx-auto animate-fade-in-up delay-300">
-          Your transfer has been successfully processed and is on its way to the recipient.
+          Your USDM transfer has been successfully processed and delivered on-ledger.
         </p>
 
         {/* Transaction Summary */}
@@ -80,15 +80,12 @@ function SuccessPageContent() {
               <h3 className="text-4xl font-headline font-bold text-on-background">{amount}</h3>
             </div>
             <div className="flex items-center gap-4">
-              <img
-                className="w-12 h-12 rounded-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfbDq_20FBw-kwA2XFwPuhD_wvNIfglsWBoSqfneEKzloM3ouBnzLmm6EltNA32kDGY5rjQ2qCx4fKuqM1CsV2ZlDhlZ6sGZvwiKD184ajNrpD0wRHqNWZ7W5J5S2mkd2TIdjZGHbsFxUkTj5CkgrSon5hBccuYb-GoGB6i3qEN3t3f7g_7OKiYYUlhNpaM93uU8s26BbtfsO_e1auW3RJOf1-QXEG75M3TYw-ieTNDSUeHcI5Pp38qdAZFWeUPeu54ker1-yjkxM"
-                alt={recipient}
-              />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary text-2xl">person</span>
+              </div>
               <div>
                 <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-1">Recipient</span>
                 <p className="font-headline font-bold text-lg">{recipient}</p>
-                <p className="text-sm text-on-surface-variant">{handle}</p>
               </div>
             </div>
           </div>
@@ -112,7 +109,7 @@ function SuccessPageContent() {
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 block">Transaction ID</span>
                 <div className="flex items-center gap-2">
-                  <p className="text-on-background font-mono text-sm">SV-9824-LX02</p>
+                  <p className="text-on-background font-mono text-sm">{txId}</p>
                   <button
                     onClick={copyTxId}
                     className="text-primary hover:bg-primary/10 p-1 rounded-md transition-colors active:scale-90"
@@ -143,7 +140,7 @@ function SuccessPageContent() {
         </div>
 
         <p className="mt-12 text-on-surface-variant/60 text-xs font-medium max-w-xs mx-auto animate-fade-in delay-700">
-          A confirmation email has been sent to your registered address. Funds typically arrive within 2-24 hours.
+          A confirmation has been recorded on-ledger. USDM transfers settle instantly.
         </p>
       </div>
     </div>

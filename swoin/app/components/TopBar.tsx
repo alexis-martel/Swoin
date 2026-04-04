@@ -1,12 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "./ToastProvider";
+
+type Transaction = {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  sender_email: string;
+  receiver_email: string;
+  amount: string;
+  created_at: string;
+};
 
 export default function TopBar() {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Transaction[]>([]);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const toast = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/transactions")
+      .then((res) => (res.ok ? res.json() : { transactions: [], userId: null }))
+      .then((data: { transactions: Transaction[]; userId: number | null }) => {
+        setNotifications((data.transactions ?? []).slice(0, 5));
+        setUserId(data.userId);
+      })
+      .catch(() => {});
+  }, []);
+
   const handleSignOut = async () => {
     try {
       const response = await fetch("/api/auth/signout", { method: "POST" });
@@ -20,16 +46,34 @@ export default function TopBar() {
     }
   };
 
+  const handleSearch = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      router.push(`/activity`);
+      toast(`Searching: ${searchQuery}`);
+    }
+  };
+
+  const formatNotifTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
+
+  const hasNotifs = notifications.length > 0;
+
   return (
     <header className="fixed top-0 right-0 w-full lg:w-[calc(100%-16rem)] h-16 bg-background flex justify-between items-center px-6 lg:px-12 z-40">
       {/* Mobile: Logo */}
       <Link href="/dashboard" className="flex items-center gap-4 lg:hidden">
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high">
-          <img
-            alt="User profile"
-            className="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG-z5Ofa2W5sEHuCng6phtzLMCh-uvZ5aFlFFvljbWuj52ps06Vw5qZoAzQk3l3p8rLziNXuY3DbNNelq5pWITsS-23cTthCd14tLTtoFsaNVUOtELHXL6tTTNTBN5RVyDFKzVyqyCGfQGfPuvtoPf47xT2c3EfW6ciB9wb1UGCI8JgK1Vgy3ka_zItOFtJgwRMmkX-Camh9-GD1Z5OqWMACzb-X4kEoDRjJ3uhLRbmGDeKlf-gM6pGmlFyxpM83awq9UJ6h04_bo"
-          />
+        <div className="w-10 h-10 primary-gradient rounded-xl flex items-center justify-center text-white">
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
         </div>
         <h1 className="text-xl font-bold text-on-background font-headline">Sovereign</h1>
       </Link>
@@ -39,11 +83,11 @@ export default function TopBar() {
         <span className="material-symbols-outlined text-secondary">search</span>
         <input
           className="bg-transparent border-none focus:ring-0 focus:outline-none text-sm font-medium w-full placeholder:text-secondary/60"
-          placeholder="Search transactions, assets..."
+          placeholder="Search transactions..."
           type="text"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") toast("Search results updated");
-          }}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleSearch}
         />
       </div>
 
@@ -56,7 +100,9 @@ export default function TopBar() {
               className="text-secondary hover:text-primary transition-colors relative"
             >
               <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-0 right-0 w-2 h-2 bg-error rounded-full animate-pulse" />
+              {hasNotifs && (
+                <span className="absolute top-0 right-0 w-2 h-2 bg-error rounded-full animate-pulse" />
+              )}
             </button>
 
             {/* Notification dropdown */}
@@ -67,51 +113,50 @@ export default function TopBar() {
                   <div className="p-4 border-b border-surface-container-low">
                     <h3 className="font-headline font-bold text-sm">Notifications</h3>
                   </div>
-                  <div className="divide-y divide-surface-container-low">
-                    <div className="p-4 hover:bg-surface-container-low transition-colors cursor-pointer">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-tertiary/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="material-symbols-outlined text-tertiary text-sm">check_circle</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-on-surface">Payment received</p>
-                          <p className="text-xs text-on-surface-variant">+$450.00 from Sarah Mitchell</p>
-                          <p className="text-[10px] text-outline mt-1">2 hours ago</p>
-                        </div>
-                      </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-on-surface-variant">No notifications yet</p>
                     </div>
-                    <div className="p-4 hover:bg-surface-container-low transition-colors cursor-pointer">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="material-symbols-outlined text-primary text-sm">currency_exchange</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-on-surface">Exchange rate alert</p>
-                          <p className="text-xs text-on-surface-variant">EUR/USDC is up +0.12% today</p>
-                          <p className="text-[10px] text-outline mt-1">5 hours ago</p>
-                        </div>
-                      </div>
+                  ) : (
+                    <div className="divide-y divide-surface-container-low max-h-80 overflow-y-auto">
+                      {notifications.map((t) => {
+                        const isSender = t.sender_id === userId;
+                        const otherEmail = isSender ? t.receiver_email : t.sender_email;
+                        const amountNum = Number(t.amount);
+
+                        return (
+                          <div key={t.id} className="p-4 hover:bg-surface-container-low transition-colors cursor-pointer">
+                            <div className="flex items-start gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isSender ? "bg-primary/10" : "bg-tertiary/10"}`}>
+                                <span className={`material-symbols-outlined text-sm ${isSender ? "text-primary" : "text-tertiary"}`}>
+                                  {isSender ? "north_east" : "south_west"}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-on-surface">
+                                  {isSender ? "Payment sent" : "Payment received"}
+                                </p>
+                                <p className="text-xs text-on-surface-variant">
+                                  {isSender
+                                    ? `-${amountNum.toLocaleString()} USDM to ${otherEmail}`
+                                    : `+${amountNum.toLocaleString()} USDM from ${otherEmail}`}
+                                </p>
+                                <p className="text-[10px] text-outline mt-1">{formatNotifTime(t.created_at)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="p-4 hover:bg-surface-container-low transition-colors cursor-pointer">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="material-symbols-outlined text-secondary text-sm">security</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-on-surface">Security update</p>
-                          <p className="text-xs text-on-surface-variant">2FA has been enabled on your account</p>
-                          <p className="text-[10px] text-outline mt-1">1 day ago</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                   <div className="p-3 border-t border-surface-container-low">
-                    <button
-                      onClick={() => { setNotifOpen(false); toast("All notifications opened"); }}
-                      className="w-full text-center text-primary text-xs font-bold hover:underline"
+                    <Link
+                      href="/activity"
+                      onClick={() => setNotifOpen(false)}
+                      className="w-full text-center text-primary text-xs font-bold hover:underline block"
                     >
-                      View all notifications
-                    </button>
+                      View all activity
+                    </Link>
                   </div>
                 </div>
               </>
@@ -137,11 +182,9 @@ export default function TopBar() {
           <span className="text-sm font-headline font-bold text-secondary group-hover:text-primary transition-colors">
             Profile
           </span>
-          <img
-            alt="User profile photo"
-            className="w-8 h-8 rounded-full object-cover ring-2 ring-transparent group-hover:ring-primary/30 transition-all"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7laqlxI9qFopTzyzkoehzFB4QZPEbcnSs9PIcAFaL0qTYaqBqN1s-yPWGT_cVzalJ_EgmB4je9ozTl3icEegg0q-KYqs3V1mZMk0q2L80p961O9s5DRtwU4O91JSYZTEoIzYMuFP0uZ1sYChDhKjY1Q0axYJZ3-_N2qNIKOX61wF4Nd5-j6ow9hA8MxAqut3g0w4Q84FWzcAS4HTZ1sWM4dxjcz_FT1keyWhvnz1hfUD9JRNOyje0pLpIAjFYwOU6ZfDmKO_oFYU"
-          />
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+            <span className="material-symbols-outlined text-primary text-lg">person</span>
+          </div>
         </Link>
       </div>
     </header>

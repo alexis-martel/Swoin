@@ -3,9 +3,8 @@
     "allow": [
       "WebFetch(domain:stitch.withgoogle.com)",
       "Bash(curl:*)",
-      "Bash(ls /home/dilyxs/programming/tmp/bagalhacks/swoin/.env*)",
-      "Bash(cat /home/dilyxs/programming/tmp/bagalhacks/swoin/.env*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx next:*)",
+      "Bash(node:*)"
     ]
   }
 }

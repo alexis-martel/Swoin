@@ -1,19 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
 import { useSession } from "../hooks/useSession";
 
+type Transaction = {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  sender_email: string;
+  receiver_email: string;
+  amount: string;
+  created_at: string;
+};
+
 export default function DashboardPage() {
   const toast = useToast();
+  const router = useRouter();
   const { user, error } = useSession();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txUserId, setTxUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (error === "Not authenticated") {
+      router.replace("/login?next=/dashboard");
+    }
+  }, [error, router]);
+
+  useEffect(() => {
+    fetch("/api/transactions")
+      .then((res) => (res.ok ? res.json() : { transactions: [], userId: null }))
+      .then((data: { transactions: Transaction[]; userId: number | null }) => {
+        setTransactions(data.transactions ?? []);
+        setTxUserId(data.userId);
+      })
+      .catch(() => {});
+  }, []);
 
   const formattedBalance = useMemo(() => {
     const parsed = Number(user?.balance ?? 0);
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(parsed);
+    return parsed.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDM";
   }, [user?.balance]);
+
+  const formatTxDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+      " \u00b7 " +
+      d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  };
 
   return (
     <AppShell>
@@ -32,10 +69,6 @@ export default function DashboardPage() {
               </h2>
               <p className="text-xs opacity-80 mb-1">{user?.email ?? "Loading account..."}</p>
               {error ? <p className="text-xs text-error font-semibold mb-4">{error}</p> : <div className="mb-4" />}
-              <span className="inline-flex items-center gap-1 text-sm font-semibold bg-white/20 px-2 py-1 rounded-lg mb-8">
-                <span className="material-symbols-outlined text-sm">trending_up</span>
-                +2.4%
-              </span>
               <div className="flex flex-wrap gap-4 mt-4">
                 <Link
                   href="/send"
@@ -44,20 +77,20 @@ export default function DashboardPage() {
                   <span className="material-symbols-outlined">north_east</span>
                   Send
                 </Link>
-                <button
-                  onClick={() => toast("Receive details opened")}
+                <Link
+                  href="/receive"
                   className="flex-1 min-w-[120px] bg-white/20 backdrop-blur-lg hover:bg-white/30 transition-all py-4 rounded-xl flex items-center justify-center gap-2 font-semibold active:scale-95"
                 >
                   <span className="material-symbols-outlined">south_west</span>
                   Receive
-                </button>
-                <button
-                  onClick={() => toast("Swap opened")}
+                </Link>
+                <Link
+                  href="/cashout"
                   className="flex-1 min-w-[120px] bg-white/20 backdrop-blur-lg hover:bg-white/30 transition-all py-4 rounded-xl flex items-center justify-center gap-2 font-semibold active:scale-95"
                 >
                   <span className="material-symbols-outlined">swap_horiz</span>
-                  Swap
-                </button>
+                  Cash Out
+                </Link>
               </div>
             </div>
           </div>
@@ -67,9 +100,9 @@ export default function DashboardPage() {
             <div className="bg-surface-container-low p-6 rounded-[2rem] hover:bg-surface-container-high transition-colors animate-fade-in-up delay-200">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary font-bold">€</div>
+                  <div className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary font-bold">&euro;</div>
                   <div>
-                    <p className="text-sm font-headline font-bold">EUR / USDC</p>
+                    <p className="text-sm font-headline font-bold">EUR / USDM</p>
                     <p className="text-xs text-secondary">Euro</p>
                   </div>
                 </div>
@@ -89,9 +122,9 @@ export default function DashboardPage() {
             <div className="bg-surface-container-low p-6 rounded-[2rem] hover:bg-surface-container-high transition-colors animate-fade-in-up delay-300">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary font-bold">£</div>
+                  <div className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary font-bold">&pound;</div>
                   <div>
-                    <p className="text-sm font-headline font-bold">GBP / USDC</p>
+                    <p className="text-sm font-headline font-bold">GBP / USDM</p>
                     <p className="text-xs text-secondary">British Pound</p>
                   </div>
                 </div>
@@ -115,142 +148,121 @@ export default function DashboardPage() {
         <section className="bg-surface-container-lowest rounded-[2rem] p-6 lg:p-8 ambient-shadow animate-fade-in-up delay-300">
           <div className="flex justify-between items-center mb-8 lg:mb-10">
             <h3 className="text-xl font-headline font-extrabold tracking-tight">Recent Activity</h3>
-            <Link
-              href="/review"
-              className="text-primary text-sm font-headline font-bold flex items-center gap-1 hover:underline active:scale-95 transition-transform"
-            >
-              View All
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </Link>
           </div>
 
-          {/* Mobile list */}
-          <div className="space-y-6 lg:hidden">
-            {transactions.map((t, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between animate-fade-in-up"
-                style={{ animationDelay: `${(i + 1) * 100}ms` }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center">
-                    <span className="material-symbols-outlined text-primary">{t.icon}</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-on-surface">{t.name}</p>
-                    <p className="text-xs text-on-surface-variant">{t.date}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`font-bold text-lg ${t.amount.startsWith("+") ? "text-tertiary" : "text-on-surface"}`}>
-                    {t.amount}
-                  </p>
-                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block ${t.status === "Completed" || t.status === "Settled" ? "text-on-tertiary-fixed-variant bg-tertiary/10" : "text-primary bg-primary/10"}`}>
-                    {t.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {transactions.length === 0 ? (
+            <div className="text-center py-16">
+              <span className="material-symbols-outlined text-5xl text-outline-variant mb-4">receipt_long</span>
+              <p className="text-on-surface-variant font-medium">No transactions yet</p>
+              <p className="text-sm text-outline mt-1">Send USDM to another user to see activity here.</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile list */}
+              <div className="space-y-6 lg:hidden">
+                {transactions.map((t, i) => {
+                  const isSender = t.sender_id === txUserId;
+                  const otherEmail = isSender ? t.receiver_email : t.sender_email;
+                  const amountStr = isSender
+                    ? `-${Number(t.amount).toLocaleString()} USDM`
+                    : `+${Number(t.amount).toLocaleString()} USDM`;
 
-          {/* Desktop table */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-on-surface-variant/60 font-label text-xs uppercase tracking-[0.15em]">
-                  <th className="pb-6 px-4">Recipient / Asset</th>
-                  <th className="pb-6 px-4">Date &amp; Time</th>
-                  <th className="pb-6 px-4 text-right">Amount</th>
-                  <th className="pb-6 px-4 text-center">Status</th>
-                  <th className="pb-6 px-4" />
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {transactions.map((t, i) => (
-                  <tr
-                    key={i}
-                    className="tonal-shift hover:bg-surface-container-low group cursor-pointer animate-fade-in-up"
-                    style={{ animationDelay: `${(i + 2) * 100}ms` }}
-                    onClick={() => toast("Transaction details opened")}
-                  >
-                    <td className="py-5 px-4 rounded-l-2xl">
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between animate-fade-in-up"
+                      style={{ animationDelay: `${(i + 1) * 100}ms` }}
+                    >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center overflow-hidden">
-                          {t.avatar ? (
-                            <img alt="" className="w-full h-full object-cover" src={t.avatar} />
-                          ) : (
-                            <span className="material-symbols-outlined text-primary">{t.icon}</span>
-                          )}
+                        <div className="w-12 h-12 rounded-2xl bg-surface-container-highest flex items-center justify-center">
+                          <span className="material-symbols-outlined text-primary">
+                            {isSender ? "north_east" : "south_west"}
+                          </span>
                         </div>
                         <div>
-                          <p className="font-bold text-on-background">{t.name}</p>
-                          <p className="text-xs text-on-surface-variant">{t.desc}</p>
+                          <p className="font-bold text-on-surface">{otherEmail}</p>
+                          <p className="text-xs text-on-surface-variant">{formatTxDate(t.created_at)}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="py-5 px-4 text-on-surface-variant font-medium">{t.date}</td>
-                    <td className="py-5 px-4 text-right">
-                      <p className={`font-bold ${t.amount.startsWith("+") ? "text-tertiary" : "text-on-background"}`}>{t.amount}</p>
-                      {t.converted && <p className="text-xs text-on-surface-variant">{t.converted}</p>}
-                    </td>
-                    <td className="py-5 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${t.status === "Processing" ? "bg-primary/10 text-primary" : "bg-tertiary/10 text-on-tertiary-fixed-variant"}`}>
-                        {t.status}
-                      </span>
-                    </td>
-                    <td className="py-5 px-4 rounded-r-2xl text-right">
-                      <span className="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">more_vert</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <div className="text-right">
+                        <p className={`font-bold text-lg ${isSender ? "text-on-surface" : "text-tertiary"}`}>
+                          {amountStr}
+                        </p>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block text-on-tertiary-fixed-variant bg-tertiary/10">
+                          Completed
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-on-surface-variant/60 font-label text-xs uppercase tracking-[0.15em]">
+                      <th className="pb-6 px-4">User</th>
+                      <th className="pb-6 px-4">Date &amp; Time</th>
+                      <th className="pb-6 px-4 text-right">Amount</th>
+                      <th className="pb-6 px-4 text-center">Type</th>
+                      <th className="pb-6 px-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    {transactions.map((t, i) => {
+                      const isSender = t.sender_id === txUserId;
+                      const otherEmail = isSender ? t.receiver_email : t.sender_email;
+                      const amountStr = isSender
+                        ? `-${Number(t.amount).toLocaleString()} USDM`
+                        : `+${Number(t.amount).toLocaleString()} USDM`;
+
+                      return (
+                        <tr
+                          key={t.id}
+                          className="tonal-shift hover:bg-surface-container-low group cursor-pointer animate-fade-in-up"
+                          style={{ animationDelay: `${(i + 2) * 100}ms` }}
+                          onClick={() => toast(`Transaction #${t.id}`)}
+                        >
+                          <td className="py-5 px-4 rounded-l-2xl">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center">
+                                <span className="material-symbols-outlined text-primary">
+                                  {isSender ? "north_east" : "south_west"}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-bold text-on-background">{otherEmail}</p>
+                                <p className="text-xs text-on-surface-variant">
+                                  {isSender ? "Sent USDM" : "Received USDM"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-5 px-4 text-on-surface-variant font-medium">{formatTxDate(t.created_at)}</td>
+                          <td className="py-5 px-4 text-right">
+                            <p className={`font-bold ${isSender ? "text-on-background" : "text-tertiary"}`}>{amountStr}</p>
+                          </td>
+                          <td className="py-5 px-4 text-center">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isSender ? "bg-primary/10 text-primary" : "bg-tertiary/10 text-on-tertiary-fixed-variant"}`}>
+                              {isSender ? "Sent" : "Received"}
+                            </span>
+                          </td>
+                          <td className="py-5 px-4 rounded-r-2xl text-center">
+                            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-tertiary/10 text-on-tertiary-fixed-variant">
+                              Completed
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
       </div>
     </AppShell>
   );
 }
-
-const transactions = [
-  {
-    name: "Alice Morgan",
-    desc: "Cross-border USDC Transfer",
-    icon: "person",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuA13Y4-36pF81fjZWcAss4gKwI895cIJESN-4AYVo3MsVZj2Zt6J0lY1S0MGzFqyQMqHnGtpAvptMBqawLwKxX2JLwjKr2rug83sxVFstduXa1ADDA5xihCY7iAMcU9z924KdaIL8Q2q3NJMKaW4ssZeYXdcUnC_Gr6EpfsJayCYTWUgoTHgBImwzx7Mc8o6yZfvOH8h56PeJBRlkSTGdUk_Dd5dWyuO2hPmB_fQSDtzUc5Ne1di2lhzg85DZFD0EYIqlV9TWDwyaI",
-    date: "Oct 24, 2023 · 14:20",
-    amount: "-$4,200.00",
-    converted: "3,852.14 EUR",
-    status: "Completed",
-  },
-  {
-    name: "Self Wallet Top-up",
-    desc: "External Bank Wire",
-    icon: "account_balance_wallet",
-    avatar: "",
-    date: "Oct 23, 2023 · 09:45",
-    amount: "+$12,000.00",
-    converted: "12,000.00 USDC",
-    status: "Completed",
-  },
-  {
-    name: "David Lawson",
-    desc: "Consulting Fees",
-    icon: "person",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuCOOEWyV3HCIn1wexVlAjKUDbeb6_Jwe2DHwWvlCjODKoH_Vy6yJFNmcs8fXqVIcJib8Licw5Q6PiuwkjFCjMWfZsVl6_jK8Gw71dhMaGRPkK4SKGvlWq2X-YEOK3FjlQ1OyrzkSzafj2UoWV8GU7dT8MO3PsTa3-Yk4lx8CHNIrJmNWKXiuB9fvyLulhwKcSN-xyp-91IMndcqj4KI6bslIroxFPUtbySxxLWRUDTmQpwSAglH6QdFc3QTqyvt8Hr0sWnG50NyM0E",
-    date: "Oct 22, 2023 · 18:12",
-    amount: "-$850.00",
-    converted: "668.21 GBP",
-    status: "Processing",
-  },
-  {
-    name: "USDC to EUR Swap",
-    desc: "In-app conversion",
-    icon: "currency_exchange",
-    avatar: "",
-    date: "Oct 21, 2023 · 11:30",
-    amount: "-$1,500.00",
-    converted: "1,385.50 EUR",
-    status: "Completed",
-  },
-];

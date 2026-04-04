@@ -5,33 +5,13 @@ let pool: Pool | null = null;
 function getPool() {
   if (pool) return pool;
 
-  const host = process.env.PGHOST;
-  const port = Number(process.env.PGPORT ?? "5432");
-  const user = process.env.PGUSER;
-  const database = process.env.PGDATABASE ?? "swoin";
-  const password = process.env.PGPASSWORD;
-  const sslMode = process.env.PGSSLMODE ?? "prefer";
-
-  if (!host) {
-    throw new Error("PGHOST is not configured");
-  }
-  if (!user) {
-    throw new Error("PGUSER is not configured");
-  }
-  if (!password) {
-    throw new Error("PGPASSWORD is not configured");
-  }
-
   pool = new Pool({
-    host,
-    port,
-    user,
-    database,
-    password,
-    ssl:
-      sslMode === "disable"
-        ? false
-        : { rejectUnauthorized: sslMode === "verify-full" },
+    host: process.env.PGHOST,
+    port: Number(process.env.PGPORT ?? "5432"),
+    user: process.env.PGUSER,
+    database: process.env.PGDATABASE,
+    password: process.env.PGPASSWORD,
+    ssl: false,
     max: 10,
     idleTimeoutMillis: 30_000,
   });
@@ -50,7 +30,6 @@ export async function getUserByEmail(email: string): Promise<AuthUser | null> {
     "SELECT id, email, password FROM login WHERE email = $1 LIMIT 1",
     [email],
   );
-
   return result.rows[0] ?? null;
 }
 
@@ -59,21 +38,14 @@ export async function createUser(
   passwordHash: string,
 ): Promise<{ id: number; email: string }> {
   const client = await getPool().connect();
-
   try {
     await client.query("BEGIN");
-
     const loginResult = await client.query<{ id: number; email: string }>(
       "INSERT INTO login (email, password) VALUES ($1, $2) RETURNING id, email",
       [email, passwordHash],
     );
-
     const user = loginResult.rows[0];
-    await client.query("INSERT INTO balance (id, balance) VALUES ($1, $2)", [
-      user.id,
-      0,
-    ]);
-
+    await client.query("INSERT INTO balance (id, balance) VALUES ($1, $2)", [user.id, 10000]);
     await client.query("COMMIT");
     return user;
   } catch (error) {
@@ -87,11 +59,7 @@ export async function createUser(
 export async function getUserSessionData(
   userId: number,
 ): Promise<{ id: number; email: string; balance: string } | null> {
-  const result = await getPool().query<{
-    id: number;
-    email: string;
-    balance: string;
-  }>(
+  const result = await getPool().query<{ id: number; email: string; balance: string }>(
     `SELECT l.id, l.email, COALESCE(b.balance, 0)::text AS balance
      FROM login l
      LEFT JOIN balance b ON b.id = l.id
@@ -99,27 +67,98 @@ export async function getUserSessionData(
      LIMIT 1`,
     [userId],
   );
-
   return result.rows[0] ?? null;
 }
 
-// Apply a delta to a user's balance. Returns the new balance as text.
-// Uses INSERT ... ON CONFLICT to create the balance row if it doesn't exist
-// and atomically updates the existing value otherwise.
-export async function updateBalance(
-  userId: number,
-  delta: number,
-): Promise<string> {
-  const result = await getPool().query<{ balance: string }>(
-    `INSERT INTO balance (id, balance) VALUES ($1, $2)
-     ON CONFLICT (id) DO UPDATE SET balance = balance + EXCLUDED.balance
-     RETURNING balance`,
-    [userId, delta],
+export async function searchUsers(
+  query: string,
+  excludeId?: number,
+): Promise<{ id: number; email: string }[]> {
+  const result = await getPool().query<{ id: number; email: string }>(
+    "SELECT id, email FROM login WHERE id != $1 AND email ILIKE $2 LIMIT 10",
+    [excludeId ?? -1, `%${query}%`],
   );
+  return result.rows;
+}
 
-  if (!result.rows[0]) {
-    throw new Error("Failed to update balance");
+export async function getUserById(
+  userId: number,
+): Promise<{ id: number; email: string } | null> {
+  const result = await getPool().query<{ id: number; email: string }>(
+    "SELECT id, email FROM login WHERE id = $1 LIMIT 1",
+    [userId],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function transferBalance(
+  fromId: number,
+  toId: number,
+  amount: number,
+): Promise<{ success: boolean; error?: string }> {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+
+    const fromResult = await client.query<{ balance: string }>(
+      "SELECT balance::text FROM balance WHERE id = $1 FOR UPDATE",
+      [fromId],
+    );
+    const toResult = await client.query<{ balance: string }>(
+      "SELECT balance::text FROM balance WHERE id = $1 FOR UPDATE",
+      [toId],
+    );
+
+    if (!fromResult.rows[0] || !toResult.rows[0]) {
+      await client.query("ROLLBACK");
+      return { success: false, error: "Account not found" };
+    }
+
+    const fromBalance = Number(fromResult.rows[0].balance);
+    if (fromBalance < amount) {
+      await client.query("ROLLBACK");
+      return { success: false, error: "Insufficient balance" };
+    }
+
+    await client.query("UPDATE balance SET balance = balance - $1 WHERE id = $2", [amount, fromId]);
+    await client.query("UPDATE balance SET balance = balance + $1 WHERE id = $2", [amount, toId]);
+    await client.query(
+      "INSERT INTO transactions (sender_id, receiver_id, amount) VALUES ($1, $2, $3)",
+      [fromId, toId, amount],
+    );
+
+    await client.query("COMMIT");
+    return { success: true };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
+}
 
-  return result.rows[0].balance;
+export type Transaction = {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  sender_email: string;
+  receiver_email: string;
+  amount: string;
+  created_at: string;
+};
+
+export async function getTransactions(userId: number): Promise<Transaction[]> {
+  const result = await getPool().query<Transaction>(
+    `SELECT t.id, t.sender_id, t.receiver_id,
+            s.email AS sender_email, r.email AS receiver_email,
+            t.amount::text, t.created_at::text
+     FROM transactions t
+     JOIN login s ON s.id = t.sender_id
+     JOIN login r ON r.id = t.receiver_id
+     WHERE t.sender_id = $1 OR t.receiver_id = $1
+     ORDER BY t.created_at DESC
+     LIMIT 20`,
+    [userId],
+  );
+  return result.rows;
 }

@@ -9,11 +9,7 @@ type SessionPayload = {
 };
 
 function getSessionSecret() {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    throw new Error("SESSION_SECRET is not configured");
-  }
-  return secret;
+  return process.env.SESSION_SECRET || "sovereign-demo-secret-do-not-use-in-production";
 }
 
 function toBase64Url(value: string) {
