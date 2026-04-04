@@ -167,7 +167,7 @@ export default function LandingPage() {
           ].map((f, i) => (
             <button
               key={f.title}
-              onClick={comingSoon(f.title)}
+              onClick={quickAction(f.title)}
               className={`bg-surface-container-low rounded-3xl p-8 space-y-4 hover:bg-surface-container-high hover:-translate-y-1 transition-all duration-300 text-left animate-fade-in-up`}
               style={{ animationDelay: `${(i + 1) * 150}ms` }}
             >
