@@ -5,11 +5,16 @@ let pool: Pool | null = null;
 function getPool() {
   if (pool) return pool;
 
-  const host = process.env.PGHOST ?? "148.230.90.188";
+  const host = process.env.PGHOST;
   const port = Number(process.env.PGPORT ?? "5432");
   const user = process.env.PGUSER ?? "bagel";
   const database = process.env.PGDATABASE ?? "swoin";
   const password = process.env.PGPASSWORD;
+  const sslMode = process.env.PGSSLMODE ?? "prefer";
+
+  if (!host) {
+    throw new Error("PGHOST is not configured");
+  }
 
   if (!password) {
     throw new Error("PGPASSWORD is not configured");
@@ -21,7 +26,7 @@ function getPool() {
     user,
     database,
     password,
-    ssl: false,
+    ssl: sslMode === "disable" ? false : { rejectUnauthorized: sslMode === "verify-full" },
     max: 10,
     idleTimeoutMillis: 30_000,
   });
