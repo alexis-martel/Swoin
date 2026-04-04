@@ -1,42 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
+import { useSession } from "../hooks/useSession";
 
-const contacts = [
-  {
-    name: "Marcus",
-    handle: "@m_foster",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuAkv46aZy9pXiaUNOxa_iqoxoCx0Li3OBrEOxR6fEVqYu1adGmyq3HWK1iQ3clKCAqpZhpIE8NissWqbUf8WP7PAU0t1jTWUEX6yPw3fqLhLZx2vbzDKJqu1mCDs7aXxPR7_GGjWfKdSo0urXZpAUZFIgprt1LRu1pJGfDuntmKLmpwxY7cuc5TRMh4XyrDuC54GcZrLc317wiQ0zqGEBtMRcULKzBaTRCAY9hOg-qnzZQPg9uJQlEGXO_ZPID7_IT4wj2_zGw_p64",
-    online: true,
-  },
-  {
-    name: "Elena",
-    handle: "@elenas_vault",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuCOOLQFsFFZr9VLMwSBNr0E1gp39HMqKiYkIdVtfW6rbJk1QBlfPJ_q-xmcQTQxbyxiqSsptf2kjEVdr9cFK7DDgJYJ3ls3BZ4QBPy14Bp6moZJroSRKTf4vW_RqhCZnkcA7cK3T7jwE89iNYtTQG1CM8M7RmNaQg0nfOe_5Y_YcaOXg2qyvHNpEn1PAsFeNtB1SaQwGua9w8dmBhzcHR3xpQQX5q6ng0zWRDFdJHBan5OyCPFLo_QzBc82338_fddv2Ncc9AfvzWw",
-    online: false,
-  },
-  {
-    name: "Soren",
-    handle: "@s_nordic",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuBV4tmGBNUcu5cGY6P3DFK5IeF-RsM75lGgtayGiyYT9uaGx4EHLVlwllBe1CbTFkMBqeAobUhHVWYyzfz_ffKmLhtUWcYHyIUYwrP-iF0IBaQf7lxgFzB5bqSvVYX0bvGBQ2FkCiagTVZp3QMIiXTks7bJTzjVd6JZC8s3uAdeXOruwTpmWLMfR3T70q5sUhhPQktmBB4AJQiBfsMDueLzCXb1mw0V0IBwPcyj5a1L2SjdfayFeQikD6RTA3DY-vWqGMBiXxVwVuo",
-    online: false,
-  },
-];
+type SearchResult = { id: number; email: string };
 
 const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "backspace"];
 
 export default function SendPage() {
   const toast = useToast();
+  const router = useRouter();
+  const { user, error: sessionError } = useSession();
+
   const [amount, setAmount] = useState("");
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<SearchResult | null>(null);
+  const [searching, setSearching] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
-  const selectedContactHandle = selectedContact
-    ? contacts.find((c) => c.name === selectedContact)?.handle ?? ""
-    : "";
+
+  useEffect(() => {
+    if (sessionError === "Not authenticated") {
+      router.replace("/login?next=/send");
+    }
+  }, [sessionError, router]);
+
+  // Search users by email
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    setSearching(true);
+    fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, {
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((data: { users?: SearchResult[] }) => {
+        setSearchResults(data.users ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setSearching(false));
+    return () => controller.abort();
+  }, [searchQuery]);
 
   const handleKey = (key: string) => {
     if (key === "backspace") {
@@ -44,31 +56,43 @@ export default function SendPage() {
     } else if (key === ".") {
       if (!amount.includes(".")) setAmount((prev) => prev + ".");
     } else {
-      // Max 2 decimal places
       const parts = amount.split(".");
       if (parts[1] && parts[1].length >= 2) return;
-      // Max reasonable length
       if (amount.replace(".", "").length >= 8) return;
       setAmount((prev) => prev + key);
     }
   };
 
   const displayAmount = amount
-    ? `$${amount.startsWith(".") ? "0" + amount : amount}`
-    : "$0.00";
+    ? `${amount.startsWith(".") ? "0" + amount : amount}`
+    : "0.00";
 
   const parsedAmount = parseFloat(amount);
   const normalizedAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
-  const canContinue = normalizedAmount > 0 && selectedContact;
+  const balanceNum = parseFloat(user?.balance ?? "0");
+  const canContinue = normalizedAmount > 0 && selectedRecipient && normalizedAmount <= balanceNum;
+
   const reviewParams = new URLSearchParams({
     amount: normalizedAmount.toFixed(2),
-    recipient: selectedContact ?? "",
-    handle: selectedContactHandle,
+    recipientId: String(selectedRecipient?.id ?? ""),
+    recipient: selectedRecipient?.email ?? "",
   });
   if (note.trim()) {
     reviewParams.set("note", note.trim());
   }
   const reviewQuery = reviewParams.toString();
+
+  const selectRecipient = (r: SearchResult) => {
+    setSelectedRecipient(r);
+    setSearchQuery(r.email);
+    setSearchResults([]);
+  };
+
+  const clearRecipient = () => {
+    setSelectedRecipient(null);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
 
   return (
     <AppShell>
@@ -86,7 +110,7 @@ export default function SendPage() {
           </div>
           <div className="hidden lg:block">
             <h2 className="text-4xl font-headline font-extrabold tracking-tight text-on-background mb-2">Send Payment</h2>
-            <p className="text-on-surface-variant">Move assets across borders instantly with Sovereign Fluidity.</p>
+            <p className="text-on-surface-variant">Move USDM across borders instantly with Sovereign Fluidity.</p>
           </div>
         </header>
 
@@ -96,71 +120,70 @@ export default function SendPage() {
             <div className="bg-surface-container-low rounded-[2rem] p-6 lg:p-8">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-headline font-bold text-on-background">Recipient</h3>
-                <button
-                  onClick={() => toast("New recipient form opened")}
-                  className="text-primary font-headline font-bold text-sm hover:underline active:scale-95 transition-transform"
-                >
-                  New Contact
-                </button>
               </div>
 
-              {/* Search */}
-              <div className="relative mb-8">
+              {/* Search by email */}
+              <div className="relative mb-4">
                 <input
                   className="w-full bg-surface-container-lowest border-none rounded-xl py-4 pl-4 pr-12 text-on-background focus:ring-2 focus:ring-primary/20 transition-all"
-                  placeholder="Name, @handle, or wallet address"
-                  type="text"
-                  value={selectedContact ? contacts.find(c => c.name === selectedContact)?.handle || "" : ""}
-                  readOnly
+                  placeholder="Search by email address..."
+                  type="email"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (selectedRecipient) setSelectedRecipient(null);
+                  }}
                 />
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline">person_search</span>
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline">
+                  {searching ? "progress_activity" : "person_search"}
+                </span>
               </div>
 
-              {/* Contacts */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-outline ml-1">Recent Contacts</p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {contacts.map((c, i) => {
-                    const isSelected = selectedContact === c.name;
-                    return (
-                      <button
-                        key={c.name}
-                        onClick={() => setSelectedContact(isSelected ? null : c.name)}
-                        className={`group p-4 rounded-2xl transition-all text-left flex flex-col items-center gap-3 animate-fade-in-up active:scale-95 ${
-                          isSelected
-                            ? "bg-primary/10 ring-2 ring-primary"
-                            : "bg-surface-container-lowest hover:bg-surface-container-high"
-                        }`}
-                        style={{ animationDelay: `${(i + 2) * 80}ms` }}
-                      >
-                        <div className="relative">
-                          <div className={`w-14 lg:w-16 h-14 lg:h-16 rounded-full overflow-hidden ring-2 transition-all ${
-                            isSelected ? "ring-primary" : "ring-transparent group-hover:ring-primary/50"
-                          }`}>
-                            <img className="w-full h-full object-cover" src={c.avatar} alt={c.name} />
-                          </div>
-                          {c.online && (
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-tertiary-fixed-dim rounded-full border-4 border-surface-container-lowest" />
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <p className={`font-headline font-bold ${isSelected ? "text-primary" : "text-on-background"}`}>{c.name}</p>
-                          <p className="text-[10px] text-outline font-medium">{c.handle}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => toast("New recipient flow opened")}
-                    className="group bg-surface-container-low hover:bg-surface-container-high p-4 rounded-2xl transition-all border-2 border-dashed border-outline-variant/30 flex flex-col items-center gap-3 active:scale-95 animate-fade-in-up delay-400"
-                  >
-                    <div className="w-14 lg:w-16 h-14 lg:h-16 rounded-full flex items-center justify-center bg-surface-container-highest">
-                      <span className="material-symbols-outlined text-primary">add</span>
+              {/* Search results */}
+              {searchResults.length > 0 && !selectedRecipient && (
+                <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 mb-4 animate-fade-in-up">
+                  {searchResults.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => selectRecipient(r)}
+                      className="w-full flex items-center gap-4 p-4 hover:bg-surface-container-low transition-colors text-left"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-primary">person</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-on-background">{r.email}</p>
+                        <p className="text-xs text-on-surface-variant">Sovereign User</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {searchQuery.length >= 2 && searchResults.length === 0 && !searching && !selectedRecipient && (
+                <p className="text-sm text-on-surface-variant px-2 mb-4">No users found matching &ldquo;{searchQuery}&rdquo;</p>
+              )}
+
+              {/* Selected recipient */}
+              {selectedRecipient && (
+                <div className="bg-primary/5 border-2 border-primary rounded-2xl p-5 flex items-center justify-between animate-scale-in">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-primary text-2xl">person</span>
                     </div>
-                    <span className="text-xs font-bold text-on-surface">New</span>
+                    <div>
+                      <p className="font-headline font-bold text-primary">{selectedRecipient.email}</p>
+                      <p className="text-xs text-on-surface-variant">Verified Sovereign User</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={clearRecipient}
+                    className="text-secondary hover:text-error transition-colors active:scale-90"
+                  >
+                    <span className="material-symbols-outlined">close</span>
                   </button>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Promo Card — desktop only */}
@@ -189,12 +212,18 @@ export default function SendPage() {
                   </span>
                   <div className="bg-surface-container-high px-3 py-1 rounded-full flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[10px] font-bold text-white">S</span>
-                    <span className="text-sm font-bold text-on-background">USDC</span>
+                    <span className="text-sm font-bold text-on-background">USDM</span>
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-on-surface-variant">
-                  Available Balance: <span className="font-bold text-tertiary">24,500.00 USDC</span>
+                  Available Balance:{" "}
+                  <span className="font-bold text-tertiary">
+                    {user?.balance ? `${parseFloat(user.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} USDM` : "Loading..."}
+                  </span>
                 </p>
+                {normalizedAmount > balanceNum && normalizedAmount > 0 && (
+                  <p className="mt-2 text-sm text-error font-semibold">Insufficient balance</p>
+                )}
               </div>
 
               {/* Keypad */}
@@ -240,7 +269,7 @@ export default function SendPage() {
                     disabled
                     className="block w-full bg-outline-variant/30 text-outline py-5 rounded-2xl font-headline font-extrabold text-lg cursor-not-allowed"
                   >
-                    {!selectedContact ? "Select a recipient" : "Enter an amount"}
+                    {!selectedRecipient ? "Select a recipient" : normalizedAmount <= 0 ? "Enter an amount" : "Insufficient balance"}
                   </button>
                 )}
                 <button

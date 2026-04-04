@@ -1,40 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
 
-const currencies = ["USD", "EUR", "GBP"] as const;
-const USD_TO_EUR_RATE = 0.92;
-const USD_TO_GBP_RATE = 0.789;
-const formatCurrency = (value: number, symbol: string) =>
-  `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 function ReviewPageContent() {
   const toast = useToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeCurrency, setActiveCurrency] = useState<typeof currencies[number]>("USD");
+  const [submitting, setSubmitting] = useState(false);
 
-  const recipientName = searchParams.get("recipient") || "Julianne Sterling";
-  const recipientHandle = searchParams.get("handle") || "@julianne.sterling";
+  const recipientEmail = searchParams.get("recipient") || "";
+  const recipientId = searchParams.get("recipientId") || "";
   const note = searchParams.get("note") || "";
-  const amount = searchParams.get("amount") || "2450.00";
+  const amount = searchParams.get("amount") || "0.00";
   const parsedAmount = parseFloat(amount);
-  const baseUsdAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 2450;
-  const amounts = useMemo<Record<(typeof currencies)[number], string>>(() => ({
-    USD: formatCurrency(baseUsdAmount, "$"),
-    EUR: formatCurrency(baseUsdAmount * USD_TO_EUR_RATE, "€"),
-    GBP: formatCurrency(baseUsdAmount * USD_TO_GBP_RATE, "£"),
-  }), [baseUsdAmount]);
+  const baseAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0;
+  const formatted = baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const rates: Record<string, string> = {
-    USD: "1 USD = 1.00 USD",
-    EUR: `1 USD = ${USD_TO_EUR_RATE} EUR`,
-    GBP: `1 USD = ${USD_TO_GBP_RATE} GBP`,
+  const confirmTransfer = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: Number(recipientId), amount: baseAmount }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        toast(data.error ?? "Transfer failed");
+        setSubmitting(false);
+        return;
+      }
+      const successHref = `/success?amount=${encodeURIComponent(formatted + " USDM")}&recipient=${encodeURIComponent(recipientEmail)}`;
+      router.push(successHref);
+    } catch {
+      toast("Network error, please try again");
+      setSubmitting(false);
+    }
   };
-  const successHref = `/success?amount=${encodeURIComponent(amounts[activeCurrency])}&recipient=${encodeURIComponent(recipientName)}&handle=${encodeURIComponent(recipientHandle)}`;
 
   return (
     <AppShell>
@@ -68,27 +74,23 @@ function ReviewPageContent() {
                 <div className="flex justify-between items-end">
                   <div>
                     <p className="text-on-surface-variant text-sm font-medium">Sending Amount</p>
-                    <h3 className="text-4xl font-bold font-headline mt-1 transition-all duration-300">
-                      {amounts[activeCurrency]} <span className="text-lg font-medium text-secondary">{activeCurrency}</span>
+                    <h3 className="text-4xl font-bold font-headline mt-1">
+                      {formatted} <span className="text-lg font-medium text-secondary">USDM</span>
                     </h3>
                   </div>
                   <div className="bg-surface-container-high px-3 py-1 rounded-full flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
-                    <span className="text-xs font-bold">Personal Wallet</span>
+                    <span className="text-xs font-bold">USDM Wallet</span>
                   </div>
                 </div>
                 <div className="pt-6 space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-on-surface-variant text-sm">Exchange Rate</span>
-                    <span className="text-on-surface font-semibold transition-all">{rates[activeCurrency]}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
                     <span className="text-on-surface-variant text-sm">Network Fee</span>
-                    <span className="text-tertiary font-semibold">$0.00</span>
+                    <span className="text-tertiary font-semibold">0.00 USDM</span>
                   </div>
                   <div className="pt-4 border-t border-surface-container-high flex justify-between items-center">
                     <span className="text-on-surface font-bold text-lg font-headline">Total to be Deducted</span>
-                    <span className="text-primary font-extrabold text-2xl font-headline">{amounts[activeCurrency]}</span>
+                    <span className="text-primary font-extrabold text-2xl font-headline">{formatted} USDM</span>
                   </div>
                 </div>
               </div>
@@ -103,8 +105,7 @@ function ReviewPageContent() {
               </div>
               <div>
                 <p className="text-on-surface-variant text-xs font-medium uppercase tracking-widest">Recipient</p>
-                <p className="text-on-surface font-bold text-lg font-headline">{recipientName}</p>
-                <p className="text-on-surface-variant text-sm font-mono truncate max-w-[180px]">{recipientHandle}</p>
+                <p className="text-on-surface font-bold text-lg font-headline">{recipientEmail}</p>
               </div>
             </div>
             <Link href="/send" className="text-primary font-bold text-sm hover:underline active:scale-95 transition-transform">
@@ -119,25 +120,6 @@ function ReviewPageContent() {
             </div>
           )}
 
-          {/* Mobile currency toggle */}
-          <div className="flex justify-center animate-fade-in-up delay-400">
-            <div className="glass-panel rounded-full p-1.5 flex items-center gap-1 shadow-lg border border-white/20">
-              {currencies.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setActiveCurrency(c)}
-                  className={`px-5 py-2 rounded-full font-bold text-sm transition-all duration-300 ${
-                    activeCurrency === c
-                      ? "bg-primary text-white shadow-md"
-                      : "text-secondary hover:bg-surface-container-high active:scale-95"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Links */}
           <div className="flex flex-col items-center gap-4 py-2 animate-fade-in delay-500">
             <div className="flex gap-6">
@@ -150,21 +132,20 @@ function ReviewPageContent() {
             </div>
           </div>
 
-          {/* Slide to Confirm (mobile) */}
+          {/* Confirm (mobile) */}
           <div className="fixed bottom-32 left-0 w-full px-6 max-w-xl mx-auto left-1/2 -translate-x-1/2 lg:hidden">
-            <Link
-              href={successHref}
-              className="block"
-            >
+            <button onClick={confirmTransfer} disabled={submitting} className="block w-full">
               <div className="relative bg-surface-container-highest/50 backdrop-blur-xl h-[72px] rounded-full p-2 flex items-center overflow-hidden group">
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-on-secondary-container font-bold tracking-wide uppercase text-xs">Tap to Confirm Transaction</span>
+                  <span className="text-on-secondary-container font-bold tracking-wide uppercase text-xs">
+                    {submitting ? "Processing..." : "Tap to Confirm Transaction"}
+                  </span>
                 </div>
                 <div className="h-14 w-14 bg-gradient-to-br from-primary to-primary-container rounded-full flex items-center justify-center text-white shadow-xl cursor-pointer group-hover:scale-110 group-active:scale-95 transition-all z-10">
                   <span className="material-symbols-outlined">chevron_right</span>
                 </div>
               </div>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -174,10 +155,10 @@ function ReviewPageContent() {
           <section className="bg-surface-container-lowest rounded-3xl p-8 ambient-shadow animate-scale-in delay-100">
             <div className="flex flex-col items-center mb-8">
               <span className="text-xs font-bold uppercase tracking-widest text-secondary mb-4">Total Amount</span>
-              <h3 className="text-5xl font-extrabold font-headline tracking-tight text-primary transition-all duration-300">
-                {amounts[activeCurrency]}
+              <h3 className="text-5xl font-extrabold font-headline tracking-tight text-primary">
+                {formatted}
               </h3>
-              <p className="text-secondary font-medium mt-1">{activeCurrency}</p>
+              <p className="text-secondary font-medium mt-1">USDM</p>
             </div>
 
             <div className="bg-surface-container-low rounded-2xl p-5 mb-8 flex items-center justify-between">
@@ -187,17 +168,12 @@ function ReviewPageContent() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-secondary uppercase tracking-tight">From Wallet</p>
-                  <p className="font-bold text-on-background">Primary Liquid Balance</p>
+                  <p className="font-bold text-on-background">USDM Primary Wallet</p>
                 </div>
               </div>
-              <p className="text-xs font-medium text-secondary">Ending in •••• 9021</p>
             </div>
 
             <div className="space-y-4 pt-4">
-              <div className="flex justify-between items-center px-2">
-                <span className="text-on-surface-variant font-medium">Exchange Rate</span>
-                <span className="font-bold text-on-background transition-all">{rates[activeCurrency]}</span>
-              </div>
               <div className="flex justify-between items-center px-2">
                 <span className="text-on-surface-variant font-medium">Network Fee</span>
                 <span className="font-bold text-tertiary">FREE</span>
@@ -205,7 +181,7 @@ function ReviewPageContent() {
               <div className="h-px bg-surface-container-low w-full my-4" />
               <div className="flex justify-between items-center px-2">
                 <span className="text-on-background font-bold">Total to be Deducted</span>
-                <span className="text-xl font-bold font-headline text-on-background transition-all">{amounts[activeCurrency]}</span>
+                <span className="text-xl font-bold font-headline text-on-background">{formatted} USDM</span>
               </div>
             </div>
           </section>
@@ -213,19 +189,16 @@ function ReviewPageContent() {
           {/* Recipient */}
           <section className="bg-surface-container-low rounded-3xl p-6 flex items-center gap-5 animate-fade-in-up delay-200">
             <div className="relative">
-              <img
-                alt="Julianne Sterling"
-                className="w-16 h-16 rounded-2xl object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwq-Ld_trxmpEjLIhVg50tlHp4mwjFHXYw5maffjzFGo4ZaHujUKLTVRW_uuR8lE5lrKITIjrW3cMp1Q1sKfrr88uWbtQzwajUYqcvhdAq7c2ZyqtANYEuG-LHJVGyJlcKkivrZQ5iZDtm3e7kHkhvxbqKPBWPMxM1HVRAiDfzT5YSlQL_-J3NJ4ro63Wdq9I0LUqIHE_MiZBQ4fMtlw5kE3HKCP3U1zxXEKGsj_pxg2QrnWS8MY2iu76xQcZuX_emXSE8baf2_R4"
-              />
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary text-3xl">person</span>
+              </div>
               <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-tertiary rounded-full border-4 border-surface-container-low flex items-center justify-center">
                 <span className="material-symbols-outlined text-white text-[12px] font-bold">verified</span>
               </div>
             </div>
             <div className="flex-grow">
               <p className="text-xs font-bold text-secondary uppercase tracking-tight mb-0.5">Sending to</p>
-              <h4 className="text-lg font-bold font-headline text-on-background">{recipientName}</h4>
-              <p className="text-sm text-on-surface-variant">{recipientHandle}</p>
+              <h4 className="text-lg font-bold font-headline text-on-background">{recipientEmail}</h4>
             </div>
             <Link href="/send" className="bg-surface-container-highest/50 px-3 py-1.5 rounded-full hover:bg-surface-container-highest transition-colors active:scale-95">
               <span className="text-xs font-bold text-primary">Change</span>
@@ -234,12 +207,13 @@ function ReviewPageContent() {
 
           {/* Confirm Button (desktop) */}
           <div className="pt-4 px-4 animate-fade-in-up delay-300">
-            <Link
-              href={successHref}
-              className="block w-full primary-gradient py-6 rounded-2xl text-white font-headline font-bold text-xl tracking-tight shadow-xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98] text-center btn-press"
+            <button
+              onClick={confirmTransfer}
+              disabled={submitting}
+              className="block w-full primary-gradient py-6 rounded-2xl text-white font-headline font-bold text-xl tracking-tight shadow-xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98] text-center btn-press disabled:opacity-60"
             >
-              Confirm Transaction
-            </Link>
+              {submitting ? "Processing..." : "Confirm Transaction"}
+            </button>
             {note && (
               <div className="mt-5 bg-surface-container-low rounded-2xl p-4">
                 <p className="text-on-surface-variant text-[11px] font-bold uppercase tracking-widest mb-1">Note</p>
@@ -247,7 +221,7 @@ function ReviewPageContent() {
               </div>
             )}
             <p className="mt-4 text-center text-[11px] text-on-surface-variant font-medium max-w-[80%] mx-auto leading-relaxed">
-              By confirming, you authorize Sovereign Fluidity to process this transfer. Funds are usually delivered within minutes.
+              By confirming, you authorize Sovereign Fluidity to process this USDM transfer. Funds are delivered instantly on-ledger.
             </p>
             <Link href="/send" className="block w-full mt-6 py-4 text-secondary font-headline font-bold hover:text-on-background transition-colors text-center active:scale-95">
               Cancel &amp; Return
@@ -275,25 +249,6 @@ function ReviewPageContent() {
               Contact Architect Support
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
-          </div>
-        </div>
-
-        {/* Currency Toggle (desktop) */}
-        <div className="hidden lg:block fixed bottom-8 right-8 z-50">
-          <div className="glass-panel rounded-full p-2 flex items-center gap-1 shadow-2xl border border-white/20">
-            {currencies.map((c) => (
-              <button
-                key={c}
-                onClick={() => setActiveCurrency(c)}
-                className={`px-6 py-2 rounded-full font-bold text-sm transition-all duration-300 ${
-                  activeCurrency === c
-                    ? "bg-primary text-white shadow-md"
-                    : "text-secondary hover:bg-surface-container-high active:scale-95"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
           </div>
         </div>
       </div>

@@ -1,14 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
 import { useSession } from "../hooks/useSession";
 
 export default function ProfilePage() {
   const toast = useToast();
+  const router = useRouter();
   const { user, error } = useSession();
+
+  useEffect(() => {
+    if (error === "Not authenticated") {
+      router.replace("/login?next=/profile");
+    }
+  }, [error, router]);
 
   const displayName = useMemo(() => {
     const email = user?.email;
@@ -34,7 +42,7 @@ export default function ProfilePage() {
           <ProfileField label="Email" value={user?.email ?? "Loading..."} />
           <ProfileField label="Phone" value="+1 (415) 555-0192" />
           <ProfileField label="Country" value="United States" />
-          <ProfileField label="Balance" value={user?.balance ? `${user.balance} USDC` : "0 USDC"} />
+          <ProfileField label="Balance" value={user?.balance ? `${parseFloat(user.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })} USDM` : "0 USDM"} />
         </section>
         {error ? (
           <p className="text-sm text-error font-semibold">{error}</p>
