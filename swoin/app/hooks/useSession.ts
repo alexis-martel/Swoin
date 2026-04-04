@@ -17,7 +17,7 @@ export function useSession() {
     fetch("/api/auth/session")
       .then(async (res) => {
         if (res.status === 401) {
-          return { user: null, error: "Session expired" };
+          return { user: null, error: "Not authenticated" };
         }
         if (!res.ok) {
           return { user: null, error: "Session check failed" };

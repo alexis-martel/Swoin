@@ -30,7 +30,8 @@ export default function DashboardPage() {
               <h2 className="text-5xl font-bold font-headline tracking-tight mb-2 animate-count-up">
                 {formattedBalance}
               </h2>
-              <p className="text-xs opacity-80 mb-4">{error ?? user?.email ?? "Loading account..."}</p>
+              <p className="text-xs opacity-80 mb-1">{user?.email ?? "Loading account..."}</p>
+              {error ? <p className="text-xs text-error font-semibold mb-4">{error}</p> : <div className="mb-4" />}
               <span className="inline-flex items-center gap-1 text-sm font-semibold bg-white/20 px-2 py-1 rounded-lg mb-8">
                 <span className="material-symbols-outlined text-sm">trending_up</span>
                 +2.4%

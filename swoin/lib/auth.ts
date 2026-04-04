@@ -21,6 +21,7 @@ export function validateCredentials(email: string, password: string) {
     return { valid: false as const, message: "Email is too long" };
   }
 
+  // bcrypt processes up to 72 bytes effectively, so enforce this limit explicitly.
   if (password.length < 8 || password.length > 72) {
     return { valid: false as const, message: "Password must be 8-72 characters" };
   }
