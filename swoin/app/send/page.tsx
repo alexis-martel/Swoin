@@ -34,6 +34,9 @@ export default function SendPage() {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
+  const selectedContactHandle = selectedContact
+    ? contacts.find((c) => c.name === selectedContact)?.handle ?? ""
+    : "";
 
   const handleKey = (key: string) => {
     if (key === "backspace") {
@@ -54,7 +57,18 @@ export default function SendPage() {
     ? `$${amount.startsWith(".") ? "0" + amount : amount}`
     : "$0.00";
 
-  const canContinue = parseFloat(amount) > 0 && selectedContact;
+  const parsedAmount = parseFloat(amount);
+  const normalizedAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+  const canContinue = normalizedAmount > 0 && selectedContact;
+  const reviewParams = new URLSearchParams({
+    amount: normalizedAmount.toFixed(2),
+    recipient: selectedContact ?? "",
+    handle: selectedContactHandle,
+  });
+  if (note.trim()) {
+    reviewParams.set("note", note.trim());
+  }
+  const reviewQuery = reviewParams.toString();
 
   return (
     <AppShell>
@@ -216,7 +230,7 @@ export default function SendPage() {
               <div className="space-y-4">
                 {canContinue ? (
                   <Link
-                    href="/review"
+                    href={`/review?${reviewQuery}`}
                     className="block w-full primary-gradient text-white py-5 rounded-2xl font-headline font-extrabold text-lg shadow-lg shadow-primary/30 transition-all active:scale-[0.98] text-center btn-press"
                   >
                     Continue to Review

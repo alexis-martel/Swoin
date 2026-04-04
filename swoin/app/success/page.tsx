@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useToast } from "../components/ToastProvider";
 
-export default function SuccessPage() {
+function SuccessPageContent() {
   const toast = useToast();
+  const searchParams = useSearchParams();
+  const amount = searchParams.get("amount") || "$2,450.00";
+  const recipient = searchParams.get("recipient") || "Julian Schmidt";
+  const handle = searchParams.get("handle") || "@julian.schmidt";
 
   const copyTxId = async () => {
     try {
@@ -18,7 +24,7 @@ export default function SuccessPage() {
   const shareReceipt = async () => {
     const shareData = {
       title: "Sovereign Payment Receipt",
-      text: "Payment of €2,450.00 to Julian Schmidt — Transaction ID: SV-9824-LX02",
+      text: `Payment of ${amount} to ${recipient} (${handle}) — Transaction ID: SV-9824-LX02`,
     };
     try {
       if (navigator.share) {
@@ -71,17 +77,18 @@ export default function SuccessPage() {
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
             <div>
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-2">Amount Sent</span>
-              <h3 className="text-4xl font-headline font-bold text-on-background">€2,450.00</h3>
+              <h3 className="text-4xl font-headline font-bold text-on-background">{amount}</h3>
             </div>
             <div className="flex items-center gap-4">
               <img
                 className="w-12 h-12 rounded-full object-cover"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfbDq_20FBw-kwA2XFwPuhD_wvNIfglsWBoSqfneEKzloM3ouBnzLmm6EltNA32kDGY5rjQ2qCx4fKuqM1CsV2ZlDhlZ6sGZvwiKD184ajNrpD0wRHqNWZ7W5J5S2mkd2TIdjZGHbsFxUkTj5CkgrSon5hBccuYb-GoGB6i3qEN3t3f7g_7OKiYYUlhNpaM93uU8s26BbtfsO_e1auW3RJOf1-QXEG75M3TYw-ieTNDSUeHcI5Pp38qdAZFWeUPeu54ker1-yjkxM"
-                alt="Julian Schmidt"
+                alt={recipient}
               />
               <div>
                 <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-1">Recipient</span>
-                <p className="font-headline font-bold text-lg">Julian Schmidt</p>
+                <p className="font-headline font-bold text-lg">{recipient}</p>
+                <p className="text-sm text-on-surface-variant">{handle}</p>
               </div>
             </div>
           </div>
@@ -140,5 +147,13 @@ export default function SuccessPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div className="bg-background min-h-screen" />}>
+      <SuccessPageContent />
+    </Suspense>
   );
 }
