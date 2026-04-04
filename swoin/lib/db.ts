@@ -15,12 +15,11 @@ function getPool() {
   if (!host) {
     throw new Error("PGHOST is not configured");
   }
-
-  if (!password) {
-    throw new Error("PGPASSWORD is not configured");
-  }
   if (!user) {
     throw new Error("PGUSER is not configured");
+  }
+  if (!password) {
+    throw new Error("PGPASSWORD is not configured");
   }
 
   pool = new Pool({

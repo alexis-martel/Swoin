@@ -9,7 +9,11 @@ export default function TopBar() {
   const toast = useToast();
   const handleSignOut = async () => {
     try {
-      await fetch("/api/auth/signout", { method: "POST" });
+      const response = await fetch("/api/auth/signout", { method: "POST" });
+      if (!response.ok) {
+        toast("Sign out failed");
+        return;
+      }
       window.location.href = "/login";
     } catch {
       toast("Sign out failed");
