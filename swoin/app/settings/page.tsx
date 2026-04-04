@@ -26,6 +26,12 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={() => setNotifications((v) => !v)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setNotifications((v) => !v);
+                }
+              }}
               role="switch"
               aria-checked={notifications}
               aria-label="Toggle push notifications"
@@ -44,6 +50,12 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={() => setBiometrics((v) => !v)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setBiometrics((v) => !v);
+                }
+              }}
               role="switch"
               aria-checked={biometrics}
               aria-label="Toggle biometric sign-in"
