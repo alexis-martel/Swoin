@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
+import { useSession } from "../hooks/useSession";
 
 export default function DashboardPage() {
   const toast = useToast();
+  const { user, error } = useSession();
+
+  const formattedBalance = useMemo(() => {
+    const parsed = Number(user?.balance ?? 0);
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(parsed);
+  }, [user?.balance]);
 
   return (
     <AppShell>
@@ -20,8 +28,10 @@ export default function DashboardPage() {
                 Total Balance
               </p>
               <h2 className="text-5xl font-bold font-headline tracking-tight mb-2 animate-count-up">
-                $128,450.62
+                {formattedBalance}
               </h2>
+              <p className="text-xs opacity-80 mb-1">{user?.email ?? "Loading account..."}</p>
+              {error ? <p className="text-xs text-error font-semibold mb-4">{error}</p> : <div className="mb-4" />}
               <span className="inline-flex items-center gap-1 text-sm font-semibold bg-white/20 px-2 py-1 rounded-lg mb-8">
                 <span className="material-symbols-outlined text-sm">trending_up</span>
                 +2.4%
