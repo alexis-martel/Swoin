@@ -7,6 +7,10 @@ import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
 
 const currencies = ["USD", "EUR", "GBP"] as const;
+const USD_TO_EUR_RATE = 0.92;
+const USD_TO_GBP_RATE = 0.789;
+const formatCurrency = (value: number, symbol: string) =>
+  `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function ReviewPageContent() {
   const toast = useToast();
@@ -17,19 +21,20 @@ function ReviewPageContent() {
   const recipientHandle = searchParams.get("handle") || "@julianne.sterling";
   const note = searchParams.get("note") || "";
   const amount = searchParams.get("amount") || "2450.00";
-  const parsedAmount = Number.parseFloat(amount);
+  const parsedAmount = parseFloat(amount);
   const baseUsdAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 2450;
   const amounts = useMemo<Record<(typeof currencies)[number], string>>(() => ({
-    USD: `$${baseUsdAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    EUR: `€${(baseUsdAmount * 0.92).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    GBP: `£${(baseUsdAmount * 0.789).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    USD: formatCurrency(baseUsdAmount, "$"),
+    EUR: formatCurrency(baseUsdAmount * USD_TO_EUR_RATE, "€"),
+    GBP: formatCurrency(baseUsdAmount * USD_TO_GBP_RATE, "£"),
   }), [baseUsdAmount]);
 
   const rates: Record<string, string> = {
     USD: "1 USD = 1.00 USD",
-    EUR: "1 USD = 0.92 EUR",
-    GBP: "1 USD = 0.789 GBP",
+    EUR: `1 USD = ${USD_TO_EUR_RATE} EUR`,
+    GBP: `1 USD = ${USD_TO_GBP_RATE} GBP`,
   };
+  const successHref = `/success?amount=${encodeURIComponent(amounts[activeCurrency])}&recipient=${encodeURIComponent(recipientName)}&handle=${encodeURIComponent(recipientHandle)}`;
 
   return (
     <AppShell>
@@ -148,7 +153,7 @@ function ReviewPageContent() {
           {/* Slide to Confirm (mobile) */}
           <div className="fixed bottom-32 left-0 w-full px-6 max-w-xl mx-auto left-1/2 -translate-x-1/2 lg:hidden">
             <Link
-              href={`/success?amount=${encodeURIComponent(amounts[activeCurrency])}&recipient=${encodeURIComponent(recipientName)}&handle=${encodeURIComponent(recipientHandle)}`}
+              href={successHref}
               className="block"
             >
               <div className="relative bg-surface-container-highest/50 backdrop-blur-xl h-[72px] rounded-full p-2 flex items-center overflow-hidden group">
@@ -219,9 +224,9 @@ function ReviewPageContent() {
             </div>
             <div className="flex-grow">
               <p className="text-xs font-bold text-secondary uppercase tracking-tight mb-0.5">Sending to</p>
-               <h4 className="text-lg font-bold font-headline text-on-background">{recipientName}</h4>
-               <p className="text-sm text-on-surface-variant">{recipientHandle}</p>
-             </div>
+              <h4 className="text-lg font-bold font-headline text-on-background">{recipientName}</h4>
+              <p className="text-sm text-on-surface-variant">{recipientHandle}</p>
+            </div>
             <Link href="/send" className="bg-surface-container-highest/50 px-3 py-1.5 rounded-full hover:bg-surface-container-highest transition-colors active:scale-95">
               <span className="text-xs font-bold text-primary">Change</span>
             </Link>
@@ -230,7 +235,7 @@ function ReviewPageContent() {
           {/* Confirm Button (desktop) */}
           <div className="pt-4 px-4 animate-fade-in-up delay-300">
             <Link
-              href={`/success?amount=${encodeURIComponent(amounts[activeCurrency])}&recipient=${encodeURIComponent(recipientName)}&handle=${encodeURIComponent(recipientHandle)}`}
+              href={successHref}
               className="block w-full primary-gradient py-6 rounded-2xl text-white font-headline font-bold text-xl tracking-tight shadow-xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98] text-center btn-press"
             >
               Confirm Transaction

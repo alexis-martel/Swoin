@@ -57,15 +57,18 @@ export default function SendPage() {
     ? `$${amount.startsWith(".") ? "0" + amount : amount}`
     : "$0.00";
 
-  const parsedAmount = Number.parseFloat(amount);
+  const parsedAmount = parseFloat(amount);
   const normalizedAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
   const canContinue = normalizedAmount > 0 && selectedContact;
-  const reviewQuery = new URLSearchParams({
+  const reviewParams = new URLSearchParams({
     amount: normalizedAmount.toFixed(2),
     recipient: selectedContact ?? "",
     handle: selectedContactHandle,
-    note: note.trim(),
-  }).toString();
+  });
+  if (note.trim()) {
+    reviewParams.set("note", note.trim());
+  }
+  const reviewQuery = reviewParams.toString();
 
   return (
     <AppShell>

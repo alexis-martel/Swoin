@@ -38,22 +38,22 @@ export default function CardsPage() {
             <div key={card.number} className="bg-surface-container-low rounded-[2rem] p-8 ambient-shadow animate-fade-in-up" style={{ animationDelay: `${(idx + 1) * 120}ms` }}>
               <div className="flex items-center justify-between mb-10">
                 <p className="font-headline font-bold text-xl">{card.name}</p>
-                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${card.status === "Linked" ? "bg-tertiary/10 text-on-tertiary-fixed-variant" : "bg-primary/10 text-primary"}`}>
-                   {card.status}
-                 </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${card.status === "Linked" ? "bg-tertiary/10 text-on-tertiary-fixed-variant" : "bg-primary/10 text-primary"}`}>
+                  {card.status}
+                </span>
               </div>
               <p className="text-2xl font-headline font-bold tracking-[0.12em] mb-2">{card.number}</p>
               <p className="text-sm text-on-surface-variant">{card.type}</p>
               <div className="mt-8 flex items-center justify-between">
-                 <p className="text-xs uppercase tracking-widest text-secondary">Use Case</p>
-                 <p className="font-bold">{card.limit}</p>
-               </div>
-               <div className="mt-6 flex gap-3">
-                 <button onClick={() => toast(`${card.name} — Manage connection coming soon`)} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">
-                   Manage Link
-                 </button>
-                 <button onClick={() => toast("Add funds to balance — Coming soon")} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">Add Money</button>
+                <p className="text-xs uppercase tracking-widest text-secondary">Use Case</p>
+                <p className="font-bold">{card.limit}</p>
               </div>
+              <div className="mt-6 flex gap-3">
+                <button onClick={() => toast(`${card.name} — Manage connection coming soon`)} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">
+                  Manage Link
+                </button>
+                <button onClick={() => toast("Add funds to balance — Coming soon")} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">Add Money</button>
+               </div>
             </div>
           ))}
         </section>
