@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import AppShell from "../components/AppShell";
 import { useToast } from "../components/ToastProvider";
@@ -9,12 +10,22 @@ const currencies = ["USD", "EUR", "GBP"] as const;
 
 export default function ReviewPage() {
   const toast = useToast();
+  const searchParams = useSearchParams();
   const [activeCurrency, setActiveCurrency] = useState<typeof currencies[number]>("USD");
+  const recipientName = searchParams.get("recipient") || "Julianne Sterling";
+  const recipientHandle = searchParams.get("handle") || "@julianne.sterling";
+  const note = searchParams.get("note") || "";
+  const amountParam = searchParams.get("amount");
+  const parsedAmount = Number.parseFloat(amountParam ?? "");
+  const baseUsdAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 2450;
+  const formattedUsd = `$${baseUsdAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formattedEur = `€${(baseUsdAmount * 0.92).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formattedGbp = `£${(baseUsdAmount * 0.789).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const amounts: Record<string, string> = {
-    USD: "$2,450.00",
-    EUR: "€2,254.00",
-    GBP: "£1,933.05",
+  const amounts: Record<(typeof currencies)[number], string> = {
+    USD: formattedUsd,
+    EUR: formattedEur,
+    GBP: formattedGbp,
   };
 
   const rates: Record<string, string> = {
@@ -90,14 +101,21 @@ export default function ReviewPage() {
               </div>
               <div>
                 <p className="text-on-surface-variant text-xs font-medium uppercase tracking-widest">Recipient</p>
-                <p className="text-on-surface font-bold text-lg font-headline">Julianne Sterling</p>
-                <p className="text-on-surface-variant text-sm font-mono truncate max-w-[180px]">0x71C...392A</p>
+                <p className="text-on-surface font-bold text-lg font-headline">{recipientName}</p>
+                <p className="text-on-surface-variant text-sm font-mono truncate max-w-[180px]">{recipientHandle}</p>
               </div>
             </div>
             <Link href="/send" className="text-primary font-bold text-sm hover:underline active:scale-95 transition-transform">
               Edit
             </Link>
           </div>
+
+          {note && (
+            <div className="bg-surface-container-low rounded-[2rem] p-5 animate-fade-in-up delay-350">
+              <p className="text-on-surface-variant text-xs font-medium uppercase tracking-widest mb-2">Note</p>
+              <p className="text-on-surface">{note}</p>
+            </div>
+          )}
 
           {/* Mobile currency toggle */}
           <div className="flex justify-center animate-fade-in-up delay-400">
@@ -132,7 +150,10 @@ export default function ReviewPage() {
 
           {/* Slide to Confirm (mobile) */}
           <div className="fixed bottom-32 left-0 w-full px-6 max-w-xl mx-auto left-1/2 -translate-x-1/2 lg:hidden">
-            <Link href="/success" className="block">
+            <Link
+              href={`/success?amount=${encodeURIComponent(amounts[activeCurrency])}&recipient=${encodeURIComponent(recipientName)}&handle=${encodeURIComponent(recipientHandle)}`}
+              className="block"
+            >
               <div className="relative bg-surface-container-highest/50 backdrop-blur-xl h-[72px] rounded-full p-2 flex items-center overflow-hidden group">
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span className="text-on-secondary-container font-bold tracking-wide uppercase text-xs">Tap to Confirm Transaction</span>
@@ -201,9 +222,9 @@ export default function ReviewPage() {
             </div>
             <div className="flex-grow">
               <p className="text-xs font-bold text-secondary uppercase tracking-tight mb-0.5">Sending to</p>
-              <h4 className="text-lg font-bold font-headline text-on-background">Julianne Sterling</h4>
-              <p className="text-sm text-on-surface-variant">julianne.s@sterling-global.com</p>
-            </div>
+               <h4 className="text-lg font-bold font-headline text-on-background">{recipientName}</h4>
+               <p className="text-sm text-on-surface-variant">{recipientHandle}</p>
+             </div>
             <Link href="/send" className="bg-surface-container-highest/50 px-3 py-1.5 rounded-full hover:bg-surface-container-highest transition-colors active:scale-95">
               <span className="text-xs font-bold text-primary">Change</span>
             </Link>
@@ -212,11 +233,17 @@ export default function ReviewPage() {
           {/* Confirm Button (desktop) */}
           <div className="pt-4 px-4 animate-fade-in-up delay-300">
             <Link
-              href="/success"
+              href={`/success?amount=${encodeURIComponent(amounts[activeCurrency])}&recipient=${encodeURIComponent(recipientName)}&handle=${encodeURIComponent(recipientHandle)}`}
               className="block w-full primary-gradient py-6 rounded-2xl text-white font-headline font-bold text-xl tracking-tight shadow-xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98] text-center btn-press"
             >
               Confirm Transaction
             </Link>
+            {note && (
+              <div className="mt-5 bg-surface-container-low rounded-2xl p-4">
+                <p className="text-on-surface-variant text-[11px] font-bold uppercase tracking-widest mb-1">Note</p>
+                <p className="text-sm text-on-background">{note}</p>
+              </div>
+            )}
             <p className="mt-4 text-center text-[11px] text-on-surface-variant font-medium max-w-[80%] mx-auto leading-relaxed">
               By confirming, you authorize Sovereign Fluidity to process this transfer. Funds are usually delivered within minutes.
             </p>
