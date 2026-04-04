@@ -307,8 +307,8 @@ export async function createWithdrawal(
     // Debit the global Swoin USDM wallet (USDM leaves the pool, fiat goes out)
     await client.query(
       `INSERT INTO global_wallet (id, usdm_balance)
-       VALUES ($1, -$2)
-       ON CONFLICT (id) DO UPDATE SET usdm_balance = global_wallet.usdm_balance - $2`,
+       VALUES ($1, 0 - $2::numeric)
+       ON CONFLICT (id) DO UPDATE SET usdm_balance = global_wallet.usdm_balance - $2::numeric`,
       [GLOBAL_WALLET_ID, amount],
     );
     await client.query(
@@ -360,8 +360,8 @@ export async function createDeposit(
     // Credit the global Swoin USDM wallet (fiat came in, USDM pool grows)
     await client.query(
       `INSERT INTO global_wallet (id, usdm_balance)
-       VALUES ($1, $2)
-       ON CONFLICT (id) DO UPDATE SET usdm_balance = global_wallet.usdm_balance + $2`,
+       VALUES ($1, $2::numeric)
+       ON CONFLICT (id) DO UPDATE SET usdm_balance = global_wallet.usdm_balance + $2::numeric`,
       [GLOBAL_WALLET_ID, amount],
     );
     await client.query(
