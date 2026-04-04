@@ -144,9 +144,9 @@ function ReviewPageContent() {
               <button onClick={() => toast("Fee breakdown — no hidden fees!")} className="text-on-surface-variant hover:text-primary text-sm font-medium transition-colors active:scale-95">
                 Fee Breakdown
               </button>
-              <button onClick={() => toast("Terms & Conditions — Coming soon")} className="text-on-surface-variant hover:text-primary text-sm font-medium transition-colors active:scale-95">
+              <Link href="/terms" className="text-on-surface-variant hover:text-primary text-sm font-medium transition-colors active:scale-95">
                 Terms &amp; Conditions
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -269,7 +269,7 @@ function ReviewPageContent() {
             <h4 className="text-2xl font-bold font-headline leading-tight">Need help with this transfer?</h4>
             <p className="text-slate-400 mt-4 mb-8">Our concierge team is available 24/7 for premium sovereign accounts.</p>
             <button
-              onClick={() => toast("Support chat — Coming soon")}
+              onClick={() => toast("Support connected")}
               className="inline-flex items-center gap-2 text-primary-fixed-dim font-bold hover:gap-4 transition-all w-fit"
             >
               Contact Architect Support

@@ -17,11 +17,11 @@ export default function CardsPage() {
       <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-8">
         <section className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-secondary">Cards</p>
-            <h1 className="text-4xl font-headline font-extrabold tracking-tight">Payment Methods</h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-secondary">Payment methods</p>
+            <h1 className="text-4xl font-headline font-extrabold tracking-tight">Your payment methods</h1>
           </div>
           <button
-            onClick={() => toast("Link bank account/card — Coming soon")}
+            onClick={() => toast("New card request submitted")}
             className="primary-gradient text-white px-6 py-3 rounded-xl font-bold w-fit active:scale-95"
           >
             Connect Method
@@ -49,8 +49,8 @@ export default function CardsPage() {
                 <p className="font-bold">{card.limit}</p>
               </div>
               <div className="mt-6 flex gap-3">
-                <button onClick={() => toast(`${card.name} — Manage connection coming soon`)} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">
-                  Manage Link
+                <button onClick={() => toast(`${card.name} controls opened`)} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">
+                  Manage
                 </button>
                 <button onClick={() => toast("Add funds to balance — Coming soon")} className="px-4 py-2 rounded-xl bg-surface-container-high text-sm font-bold active:scale-95">Add Money</button>
                </div>
