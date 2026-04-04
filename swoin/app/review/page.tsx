@@ -124,7 +124,7 @@ export default function ReviewPage() {
               <button onClick={() => toast("Fee breakdown — no hidden fees!")} className="text-on-surface-variant hover:text-primary text-sm font-medium transition-colors active:scale-95">
                 Fee Breakdown
               </button>
-              <Link href="/" className="text-on-surface-variant hover:text-primary text-sm font-medium transition-colors active:scale-95">
+              <Link href="/terms" className="text-on-surface-variant hover:text-primary text-sm font-medium transition-colors active:scale-95">
                 Terms &amp; Conditions
               </Link>
             </div>

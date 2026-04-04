@@ -61,7 +61,7 @@ export default function SettingsPage() {
               <p className="text-sm text-on-surface-variant">Manage your backup verification methods.</p>
             </div>
             <button
-              onClick={() => toast("Recovery methods updated")}
+              onClick={() => toast("Recovery methods configuration opened")}
               className="px-4 py-2 rounded-xl bg-surface-container-high font-bold active:scale-95"
             >
               Configure

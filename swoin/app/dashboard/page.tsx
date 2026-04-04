@@ -35,7 +35,7 @@ export default function DashboardPage() {
                   Send
                 </Link>
                 <button
-                  onClick={() => toast("Receiving details copied")}
+                  onClick={() => toast("Receive details opened")}
                   className="flex-1 min-w-[120px] bg-white/20 backdrop-blur-lg hover:bg-white/30 transition-all py-4 rounded-xl flex items-center justify-center gap-2 font-semibold active:scale-95"
                 >
                   <span className="material-symbols-outlined">south_west</span>

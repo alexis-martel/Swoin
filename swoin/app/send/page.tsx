@@ -83,7 +83,7 @@ export default function SendPage() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-headline font-bold text-on-background">Recipient</h3>
                 <button
-                  onClick={() => toast("Add a recipient by selecting New")}
+                  onClick={() => toast("New recipient form opened")}
                   className="text-primary font-headline font-bold text-sm hover:underline active:scale-95 transition-transform"
                 >
                   New Contact
