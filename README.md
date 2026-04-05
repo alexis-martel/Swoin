@@ -4,7 +4,9 @@
 
 Built at BagelHacks 2025 — Won [Brim Financial Challenge]
 
-![Demo](demo.gif)
+https://github.com/user-attachments/assets/7e3daade-19df-4dbd-862c-847ccbf44f14
+
+
 
 ## Tech Stack
 
