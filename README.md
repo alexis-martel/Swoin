@@ -1,8 +1,40 @@
 # Swoin — Borderless Payments (Problem → Technical Solution)
 
+**Swoin moves USD-equivalent value between users and traditional banks, providing deterministic, auditable custodial cross-border transfers.**
+
+Built at BagelHacks 2025 — Won [Brim Financial Challenge]
+
+![Demo](demo.gif)
+
+## Tech Stack
+
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=node.js&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=flat-square&logo=postgresql&logoColor=white) ![Plaid](https://img.shields.io/badge/Plaid-FF6A00?style=flat-square&logo=plaid&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)
+
 Short summary
 
 Swoin is a prototype custodial cross-border payments platform that moves USD-equivalent value (USDM) between users and traditional banks. This README focuses on the problem we solve, the technical design choices made to solve it, and the concrete implementation details that matter for correctness, auditability, and operations.
+
+## Developer Quick Start
+
+Prerequisites:
+
+- Node.js 18+
+- PostgreSQL 14+
+
+Quick start:
+
+1. Change into the app directory: `cd swoin`
+2. Install dependencies: `npm install`
+3. Create `.env.local` with required variables (see below)
+4. Start dev server: `npm run dev`
+
+Minimum environment variables:
+
+- PGHOST, PGPORT, PGUSER, PGDATABASE, PGPASSWORD
+- SESSION_SECRET
+- NODE_ENV
+
+## Technical Deep Dive
 
 The problem
 
@@ -74,26 +106,6 @@ Security & compliance
 - Passwords: bcrypt hashing (configurable cost factor).
 - Sessions: HMAC-signed tokens in Secure, HttpOnly cookies — rotate secrets in production and consider HSM for signing.
 - KYC/AML: hooks exist where a production deployment MUST integrate a KYC provider and transaction monitoring before enabling fiat rails.
-
-Developer quick start
-
-Prerequisites:
-
-- Node.js 18+
-- PostgreSQL 14+
-
-Quick start:
-
-1. Change into the app directory: `cd swoin`
-2. Install dependencies: `npm install`
-3. Create `.env.local` with required variables (see below)
-4. Start dev server: `npm run dev`
-
-Minimum environment variables:
-
-- PGHOST, PGPORT, PGUSER, PGDATABASE, PGPASSWORD
-- SESSION_SECRET
-- NODE_ENV
 
 Testing and verification
 
