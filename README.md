@@ -1,128 +1,267 @@
-# Swoin (BagelCoin demo)
+# Swoin — Borderless Payments
 
-This repository contains a Next.js application that implements a simple, opinionated demo of a cross-border payments dashboard (internally called "Swoin"). It includes a server-rendered React UI, lightweight session handling, and a Postgres-backed data layer for users, balances, transactions and payment methods.
+> **Borderless Payments. Zero Hassle.**
 
-This README documents the codebase layout, how to run the project locally, important environment variables, and quick notes about the database schema and developer tooling.
+Swoin is a full-stack cross-border payments platform that lets users send, receive, deposit, and withdraw **USDM** (a stable digital currency) anywhere in the world. It is built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, and PostgreSQL.
 
-If you only need the app README (swoin/README.md) see that file — the root README here is focused on the whole repository and developer onboarding.
+---
 
-Summary
+## Table of Contents
 
-Project: Swoin — demo cross-border payments UI + server logic
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Database Schema](#database-schema)
+- [API Routes](#api-routes)
+- [Authentication & Security](#authentication--security)
+- [Scripts](#scripts)
 
-Stack:
+---
 
-- Next.js (app router)
-- React 19
-- TypeScript
-- Postgres (pg)
-- Tailwind CSS
+## Overview
 
-Where to start
+Swoin operates as a **custodial payment platform** where every user holds a USDM balance managed by a shared global ledger. Key platform metrics:
 
-1. Install dependencies in the swoin folder:
+- 180+ countries supported
+- Sub-30-second settlement (T+0)
+- Bank account linking via **Plaid**
+- On-ramp processing via **Crossmint**
 
-   ```bash
-   cd swoin
-   npm install
-   ```
+---
 
-2. Set required environment variables (see below).
+## Features
 
-3. Run the dev server:
+| Feature                  | Description                                                    |
+| ------------------------ | -------------------------------------------------------------- |
+| **P2P Transfers**        | Send USDM to any user by email with an optional note           |
+| **Deposit / Onramp**     | Add funds through a connected bank account (Plaid + Crossmint) |
+| **Withdrawal / Cashout** | Withdraw USDM back to a linked bank account                    |
+| **Activity History**     | Paginated view of all transactions, deposits, and withdrawals  |
+| **Payment Methods**      | Add and remove bank accounts via Plaid Link                    |
+| **Dashboard**            | Real-time balance and quick-action cards                       |
+| **Profile & Settings**   | Account info and preferences                                   |
 
-   ```bash
-   npm run dev
-   ```
+---
 
-4. Open http://localhost:3000
+## Tech Stack
 
-Project layout (important files)
+### Frontend
 
-- swoin/package.json — scripts and dependencies (Next.js v16.x in this tree).
-- swoin/app — Next.js app folder (routes and UI components). Key pages:
-  - app/page.tsx — marketing / landing page
-  - app/layout.tsx — root layout wrapping children with the Toast provider
-  - app/dashboard, app/activity, app/settings, app/cards, app/deposit, app/cashout — primary app pages
-  - app/components — UI primitives and shell (Sidebar, TopBar, PlaidLink, AppShell, ToastProvider, BottomNav)
-- swoin/lib
-  - db.ts — Postgres pool and all database helpers (users, balances, transactions, payment methods, withdrawals, deposits, transfers).
-  - auth.ts — password hashing and credential validation helpers (bcryptjs).
-  - session.ts — compact HMAC-signed session token implementation stored in a cookie.
-- swoin/proxy.ts — middleware-style request proxy that redirects to /login when a session token is missing for protected routes.
-- swoin/scripts/test-update-balance.ts — helper script that exercises DB createUser / updateBalance flows (ts-node script).
+- [Next.js 16](https://nextjs.org/) (App Router)
+- [React 19](https://react.dev/)
+- [TypeScript 5](https://www.typescriptlang.org/)
+- [Tailwind CSS 4](https://tailwindcss.com/)
+- [react-plaid-link](https://github.com/plaid/react-plaid-link) — bank account linking
 
-Database notes
+### Backend
 
-The app expects a Postgres database and uses SQL queries in lib/db.ts. The code references these logical tables (create these in a test DB for local development):
+- Next.js API Routes (Node.js)
+- [PostgreSQL](https://www.postgresql.org/) via [`pg`](https://node-postgres.com/)
+- [bcryptjs](https://github.com/dcodeIO/bcrypt.js) — password hashing (12 rounds)
+- HMAC-SHA256 session tokens stored in HttpOnly cookies
 
-- login (id, email, password)
-- balance (id, balance)
-- transactions (id, sender_id, receiver_id, amount, created_at)
-- payment_methods (id, user_id, type, label, details, created_at)
-- withdrawals (id, user_id, method_id, method_label, amount, created_at)
-- deposits (id, user_id, method_label, amount, crossmint_payment_id, created_at)
+---
 
-The DB helper functions use transactions and SELECT ... FOR UPDATE when mutating balances to avoid races. Review lib/db.ts to see the exact SQL used.
+## Project Structure
 
-Required environment variables
+```
+BagelHacks/
+└── swoin/                   # Main application
+    ├── app/
+    │   ├── api/             # API route handlers
+    │   │   ├── auth/        # signin, signup, session, signout
+    │   │   ├── transfer/    # P2P transfers
+    │   │   ├── transactions/# Transaction history
+    │   │   ├── deposit/     # Deposit / onramp
+    │   │   ├── cashout/     # Withdrawal
+    │   │   ├── payment-methods/
+    │   │   ├── plaid/       # Plaid link & token exchange
+    │   │   ├── users/       # User search
+    │   │   └── global-wallet/
+    │   ├── components/      # Shared UI components
+    │   │   ├── AppShell.tsx
+    │   │   ├── Sidebar.tsx
+    │   │   ├── TopBar.tsx
+    │   │   ├── BottomNav.tsx
+    │   │   └── ToastProvider.tsx
+    │   ├── dashboard/
+    │   ├── send/
+    │   ├── review/
+    │   ├── cashout/
+    │   ├── deposit/
+    │   ├── activity/
+    │   ├── cards/
+    │   ├── profile/
+    │   ├── settings/
+    │   ├── login/
+    │   └── page.tsx         # Landing page
+    ├── lib/
+    │   ├── db.ts            # PostgreSQL connection & queries
+    │   ├── auth.ts          # Password hashing & verification
+    │   └── session.ts       # HMAC session token management
+    ├── proxy.ts             # Next.js middleware (auth routing)
+    ├── package.json
+    ├── tsconfig.json
+    └── next.config.ts
+```
 
-Set these in your environment (for local development a .env.local in the swoin folder works):
+---
 
-- PGHOST — Postgres host
-- PGPORT — Postgres port (default 5432)
-- PGUSER — Postgres user
-- PGPASSWORD — Postgres password
-- PGDATABASE — Postgres database name
-- SESSION_SECRET — secret for HMAC-signed session tokens (default exists in code but do NOT use in production)
+## Getting Started
 
-Optional / integration-related variables
+### Prerequisites
 
-- Plaid integration is expected by PlaidLink and API routes (look for /api/plaid/\*). Supply your Plaid credentials in environment variables used by those routes if you plan to test linking banks.
+- Node.js 18+
+- PostgreSQL 14+
 
-Development tips
+### Installation
 
-- Run the test script that creates a user and updates the balance (make sure you use a test database):
+```bash
+# 1. Navigate to the app directory
+cd swoin
 
-  ```bash
-  cd swoin
-  npx ts-node scripts/test-update-balance.ts
-  ```
+# 2. Install dependencies
+npm install
 
-- If you change session implementation or cookie options, update lib/session.ts and the proxy rules in proxy.ts.
+# 3. Copy and fill in environment variables
+cp .env.example .env.local   # create this file manually if it doesn't exist
 
-- The frontend components call several API routes under app/api (e.g. /api/transactions, /api/plaid/_, /api/auth/_). Look at corresponding files in the app/api folder if you need to modify server behavior.
+# 4. Start the development server
+npm run dev
+```
 
-Security notes
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- The session token is a signed payload stored in a cookie. SESSION_SECRET must be a safe random string in production. The repository defaults are explicitly dangerous for production — replace them.
+---
 
-- Password hashing uses bcryptjs with 12 rounds (see lib/auth.ts). Passwords must be kept secure in transit (use HTTPS in production).
+## Environment Variables
 
-- This project performs real database writes in scripts like scripts/test-update-balance.ts. Run those only on non-production/test databases.
+Create a `.env.local` file inside `swoin/` with the following variables:
 
-Common commands
+```env
+# PostgreSQL connection
+PGHOST=localhost
+PGPORT=5432
+PGUSER=your_db_user
+PGDATABASE=swoin
+PGPASSWORD=your_db_password
 
-- Install: `npm install` (run inside swoin/)
-- Dev server: `npm run dev`
-- Build: `npm run build`
-- Start (production): `npm run start`
-- Lint: `npm run lint`
+# Session signing secret (use a long random string)
+SESSION_SECRET=your_super_secret_key
 
-How to contribute
+# Node environment
+NODE_ENV=development
+```
 
-- Create branches for changes, run the dev server locally and verify UI and API behavior.
-- If you add or change DB tables, include migrations or SQL schema files in a new directory (there are no migrations in this repo by default).
+---
 
-Further reading
+## Database Schema
 
-- Browse lib/db.ts for the canonical list of queries and available DB helpers.
-- Read lib/session.ts to understand token format and cookie defaults.
+```sql
+-- User credentials
+CREATE TABLE login (
+    id       SERIAL PRIMARY KEY,
+    email    TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL          -- bcrypt hash
+);
 
-If you'd like, I can:
+-- User balances (USDM)
+CREATE TABLE balance (
+    id      INT PRIMARY KEY REFERENCES login(id),
+    balance NUMERIC(18, 8) NOT NULL DEFAULT 0
+);
 
-1. Create a local SQL schema file with CREATE TABLE statements inferred from lib/db.ts.
-2. Add a .env.example file listing the env vars.
-3. Update the app/api README or add a developer checklist for setting up Plaid and Postgres.
+-- P2P transactions
+CREATE TABLE transactions (
+    id          SERIAL PRIMARY KEY,
+    sender_id   INT REFERENCES login(id),
+    receiver_id INT REFERENCES login(id),
+    amount      NUMERIC(18, 8) NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
 
-Tell me which of the above you'd like next.
+-- Linked payment methods (bank accounts via Plaid)
+CREATE TABLE payment_methods (
+    id                 SERIAL PRIMARY KEY,
+    user_id            INT REFERENCES login(id),
+    type               TEXT,
+    label              TEXT,
+    details            TEXT,
+    plaid_access_token TEXT,
+    plaid_account_id   TEXT,
+    created_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Deposits / onramp events
+CREATE TABLE deposits (
+    id                   SERIAL PRIMARY KEY,
+    user_id              INT REFERENCES login(id),
+    method_label         TEXT,
+    amount               NUMERIC(18, 8) NOT NULL,
+    crossmint_payment_id TEXT,
+    created_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Withdrawals / cashout events
+CREATE TABLE withdrawals (
+    id           SERIAL PRIMARY KEY,
+    user_id      INT REFERENCES login(id),
+    method_id    INT,
+    method_label TEXT,
+    amount       NUMERIC(18, 8) NOT NULL,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Custodial USDM pool (global wallet)
+CREATE TABLE global_wallet (
+    id           INT PRIMARY KEY DEFAULT 1,
+    usdm_balance NUMERIC(18, 8) NOT NULL DEFAULT 0
+);
+```
+
+---
+
+## API Routes
+
+| Method          | Route                       | Description                                  |
+| --------------- | --------------------------- | -------------------------------------------- |
+| POST            | `/api/auth/signup`          | Register a new user (grants 10,000 USDM)     |
+| POST            | `/api/auth/signin`          | Authenticate and create a session            |
+| GET             | `/api/auth/session`         | Return the current session user              |
+| POST            | `/api/auth/signout`         | Clear the session cookie                     |
+| POST            | `/api/transfer`             | Transfer USDM to another user                |
+| GET             | `/api/transactions`         | Fetch transaction history                    |
+| GET/POST/DELETE | `/api/payment-methods`      | Manage linked payment methods                |
+| POST            | `/api/deposit`              | Record a deposit and credit balance          |
+| POST            | `/api/cashout`              | Record a withdrawal and debit balance        |
+| GET             | `/api/cashout/routes`       | List available cashout destinations          |
+| GET             | `/api/users/search`         | Search users by email                        |
+| POST            | `/api/plaid/link-token`     | Generate a Plaid Link token                  |
+| POST            | `/api/plaid/exchange-token` | Exchange Plaid public token for access token |
+| GET             | `/api/global-wallet`        | Get or update the global USDM pool balance   |
+
+---
+
+## Authentication & Security
+
+- Passwords are hashed with **bcrypt** at cost factor 12.
+- Sessions use **HMAC-SHA256** signed tokens stored in **HttpOnly, Secure** cookies with a 7-day expiry.
+- Token comparison is timing-safe.
+- Balance updates use **row-level locking** (`SELECT … FOR UPDATE`) inside a PostgreSQL transaction to prevent race conditions.
+- Unauthenticated requests to protected routes are redirected to `/login` by the Next.js middleware (`proxy.ts`).
+
+---
+
+## Scripts
+
+From inside the `swoin/` directory:
+
+```bash
+npm run dev    # Start development server (hot reload)
+npm run build  # Compile for production
+npm start      # Run the production build
+npm run lint   # Run ESLint
+```
