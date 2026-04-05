@@ -52,3 +52,10 @@ build/
 # Misc
 .env*
 .next/
+
+# Ignore nested node_modules directories (already common, make explicit)
+**/node_modules/
+
+# TypeScript build info files
+*.tsbuildinfo
+tsconfig.tsbuildinfo
